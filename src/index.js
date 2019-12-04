@@ -9,7 +9,7 @@ class TtkSend {
         this.account = null;
     }
 
-    async setup(addEventHandlers) {
+    async setup(addEventHandlers, receipt) {
         const addressP = document.querySelector('#address');
         const balanceP = document.querySelector('#balance');
         const refuseToWorkDiv = document.querySelector('#refuse-to-work');
@@ -50,7 +50,9 @@ class TtkSend {
         balanceP.innerHTML = `${formatTokenValue(this.balance, this.decimals, this.web3.utils.toBN)}`;
         contentDiv.style.display = 'block';
         refuseToWorkDiv.style.display = 'none';
-        clearError();
+        // NOTE: some apps would want to make a server side API call with the `receipt` to
+        // verify that funds have been transferred. Here we just display the `receipt` as a link.
+        if (receipt !== undefined && receipt !== null) { appendReceipt(receipt); } else { clearMessages(); }
     }
 
     async onLoad() {
@@ -71,10 +73,15 @@ class TtkSend {
         const toAddress = this.toAddress.value;
         const value = web3.utils.toBN(this.value.value).mul(tenBn.pow(web3.utils.toBN(this.decimals)));
         const valueHexStr = `${web3.utils.toHex(value)}`;
+        let receipt;
         try {
-            await this.contract.methods.transfer(toAddress, valueHexStr).send({from: this.account});
-            await this.setup(false /* addEventHandlers */); // update token balance
+            receipt = await this.contract.methods.transfer(toAddress, valueHexStr).send({from: this.account});
+            await this.setup(false /* addEventHandlers */, receipt); // update token balance
         } catch (error) {
+            // Add code here to handle:
+            // 1. User rejects transaction via Wallet user interface
+            // 2. User has insufficient TT funds for paying gas for the transaction
+            // 3. User has insufficient ERC-20 tokens for the amount they want to transfer
             appendError(error);
         }
     }
@@ -114,12 +121,18 @@ function displayEarlyError(e) {
 
 function appendError(e) {
     console.log('ERROR:', e);
-    const d = document.querySelector('#error');
-    d.innerHTML += '<p>' + formatError(e) + '</p>';
+    const d = document.querySelector('#msg');
+    d.innerHTML = '<p>' + formatError(e) + '</p>' + d.innerHTML;
 }
 
-function clearError() {
-    const d = document.querySelector('#error');
+function appendReceipt(receipt) {
+    console.log('Receipt:', receipt);
+    const d = document.querySelector('#msg');
+    d.innerHTML = `<p><a href="${settings.blockExplorerTxUrlPrefix}${receipt.transactionHash}">receipt</a></p>` + d.innerHTML;
+}
+
+function clearMessages() {
+    const d = document.querySelector('#msg');
     d.innerHTML = '';
 }
 
