@@ -1,1 +1,1 @@
-../settings/dev.js
+../settings/prod.js
