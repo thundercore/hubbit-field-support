@@ -4,9 +4,8 @@ import abi from '../abi/usdt.json';
 
 class TtkSend {
     constructor(web3, contractAddress) {
-        this.web3 = web3;
-        this.contractAddress = contractAddress;
-        this.account = null;
+        this.web3 = web3; this.account = null;
+        this.contractAddress = contractAddress; this.simpleFloatRegex = '';
     }
 
     async setup(addEventHandlers, receipt) {
@@ -18,6 +17,7 @@ class TtkSend {
         this.toAddress = document.querySelector('#to-address');
         this.submit = document.querySelector('#submit');
         if (addEventHandlers) {
+            this.value.addEventListener('input', this.onValueInput.bind(this));
             this.value.addEventListener('input', this.onInput.bind(this));
             this.toAddress.addEventListener('input', this.onInput.bind(this));
             this.submit.addEventListener('click', this.onSubmit.bind(this));
@@ -71,7 +71,13 @@ class TtkSend {
         const web3 = this.web3;
         const tenBn = web3.utils.toBN(10);
         const toAddress = this.toAddress.value;
-        const value = web3.utils.toBN(this.value.value).mul(tenBn.pow(web3.utils.toBN(this.decimals)));
+        let value;
+        try {
+            value = strAndDecimalsToBn(this.value.value, this.decimals, web3.utils.toBN);
+        } catch (error) {
+            appendError(error);
+            return;
+        }
         const valueHexStr = `${web3.utils.toHex(value)}`;
         let receipt;
         try {
@@ -85,6 +91,21 @@ class TtkSend {
             appendError(error);
         }
     }
+
+    onValueInput(event) {
+        const s = event.target.value;
+        console.log('onValueInput:', s, strIsValidFloat(s));
+        if (!strIsValidFloat(s) && s !== '') {
+            this.value.value = this.oldValueStr;
+        } else {
+            this.oldValueStr = s;
+        }
+    }
+}
+
+const isValidFloatRe = new RegExp('^[0-9]+(\\.[0-9]*)?$');
+function strIsValidFloat(s) {
+    return isValidFloatRe.test(s);
 }
 
 function numericStrDot2F(s) {
@@ -109,6 +130,35 @@ function formatTokenValue(val, decimals, toBN) {
     return numericStrDot2F(toBN(val).div(eMinusTwo).toString());
 }
 
+// strAndDecimalsToBn('1.234', 3) -> toBN('1234')
+function strAndDecimalsToBn(s, decimals, toBN) {
+  let i = s.lastIndexOf('.');
+  if (i === -1) {
+    const input = s + '0'.repeat(decimals)
+    //console.log('input:', input);
+    return toBN(input);
+  }
+  const f = s.slice(i+1, s.length);
+  const w = s.slice(0, i);
+  if (decimals === 0) {
+    let input;
+    if (f === '0' || f === '') {
+      input = w; // '123.0' -> '123', '123.' -> '123'
+    }else {
+      input = s; // `s` contains '.', toBN should throw exceptions
+    }
+    //console.log('input:', input);
+    return toBN(input);
+  }
+  // at this point: i !== -1, decimals !== 0
+  if (f.length > decimals) {
+    throw new Error(`Too many digits after decimal point: ${s}, decimals: ${decimals}`);
+  }
+  const input = w + f + ('0'.repeat(decimals - f.length));
+  //console.log('f:', f, 'input:', input);
+  return toBN(input);
+}
+
 function replaceContent(s) {
     const d = document.querySelector('#refuse-to-work');
     d.innerHTML = s;
@@ -128,7 +178,7 @@ function appendError(e) {
 function appendReceipt(receipt) {
     console.log('Receipt:', receipt);
     const d = document.querySelector('#msg');
-    d.innerHTML = `<p><a href="${settings.blockExplorerTxUrlPrefix}${receipt.transactionHash}">receipt</a></p>` + d.innerHTML;
+    d.innerHTML = `<p><a href="${settings.blockExplorerTxUrlPrefix}${receipt.transactionHash}">${receipt.transactionHash}</a></p>` + d.innerHTML;
 }
 
 function clearMessages() {
