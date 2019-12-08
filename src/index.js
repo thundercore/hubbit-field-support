@@ -8,7 +8,7 @@ class TtkSend {
         this.contractAddress = contractAddress; this.simpleFloatRegex = '';
     }
 
-    async setup(addEventHandlers, receipt) {
+    async setup(addEventHandlers, receipt) { /* `receipt`, if present, is a we3.js transaction-receipt object */
         const addressP = document.querySelector('#address');
         const balanceP = document.querySelector('#balance');
         const refuseToWorkDiv = document.querySelector('#refuse-to-work');
@@ -176,7 +176,7 @@ function appendError(e) {
 }
 
 function appendReceipt(receipt) {
-    console.log('Receipt:', receipt);
+    //console.log('Receipt:', receipt);
     const d = document.querySelector('#msg');
     d.innerHTML = `<p><a href="${settings.blockExplorerTxUrlPrefix}${receipt.transactionHash}">${receipt.transactionHash}</a></p>` + d.innerHTML;
 }
@@ -192,7 +192,7 @@ function formatError(e) {
 
 async function getWeb3() {
     if (settings.rpcUrl !== null) {
-        console.log('rpcUrl:', settings.rpcUrl);
+        //console.log('rpcUrl:', settings.rpcUrl);
         return new Web3(settings.rpcUrl);
     }
     if (!window.ethereum) {
